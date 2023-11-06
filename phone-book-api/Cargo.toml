@@ -1,0 +1,24 @@
+[package]
+name = "phone-book-api"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "app"
+path = "src/main.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+axum = {version="0.6.20"}
+serde_json = "1.0.68"
+serde = {version="1.0.189", features=["derive"]}
+tokio = { version = "1.33.0", features = ["full"] }
+tracing-subscriber ={ version="0.3.17",  features = ["env-filter"]}
+lazy_static = "1.4.0"
+paste = "1.0.14"
+mongodb = "2.7.0"
+async-trait = "0.1.74"
+futures = "0.3"
+lupa={path="../crates/lupa", version="0.1.0"}
+macros_utils={path="../crates/macros-utils", version="0.1.0"}

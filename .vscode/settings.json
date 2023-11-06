@@ -1,0 +1,15 @@
+{
+    "rust-analyzer.linkedProjects": [
+        "./phone-book-api/Cargo.toml",
+        "./phone-book-api/Cargo.toml",
+        "./phone-book-api/Cargo.toml",
+        "./phone-book-api/Cargo.toml",
+        "./phone-book-api/Cargo.toml",
+        "./phone-book-api/Cargo.toml",
+        "./phone-book-api/Cargo.toml",
+        "./phone-book-api/Cargo.toml"
+    ],
+    "files.associations": {
+        "memory": "cpp"
+    }
+}
