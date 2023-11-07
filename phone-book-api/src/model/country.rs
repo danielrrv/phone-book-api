@@ -1,7 +1,7 @@
 use crate::data::countrties_repository::COUNTRIES_DATA;
 use crate::model::business::Business;
 
-use async_trait::async_trait;
+// use async_trait::async_trait;
 use futures::stream::{StreamExt, TryStream, TryStreamExt};
 use mongodb::{
     bson::{doc, Document},
@@ -92,12 +92,12 @@ impl Query {
             .collect()
     }
 }
-#[async_trait]
-pub trait Model<T> {
-    fn when(&mut self, field_name: String, field_value: String) -> &mut T;
-    fn from_collection(&mut self, entity: String) -> &mut T;
-    async fn execute(&mut self) -> Result<&Country, mongodb::error::Error>;
-}
+// #[async_trait]
+// pub trait Model<T> {
+//     fn when(&mut self, field_name: String, field_value: String) -> &mut T;
+//     fn from_collection(&mut self, entity: String) -> &mut T;
+//     async fn execute(&mut self) -> Result<&Country, mongodb::error::Error>;
+// }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct Country {
@@ -127,6 +127,7 @@ impl From<mongodb::Database> for Country {
         }
     }
 }
+
 impl From<String> for Country {
     fn from(value: String) -> Self {
         Self {
@@ -135,6 +136,17 @@ impl From<String> for Country {
             company_name: value,
             code: Default::default(),
             businesses: Default::default(),
+        }
+    }
+}
+impl From<Vec<Business>> for Country {
+    fn from(value: Vec<Business>) -> Self {
+        Self {
+            _client: None,
+            _query: None,
+            company_name: String::from("Avianca"),
+            code: Default::default(),
+            businesses: value,
         }
     }
 }
@@ -163,7 +175,6 @@ impl Country {
             .iter()
             .map(|f| f.clone().unwrap())
             .collect();
-        println!("{:?}", filters);
         // type Output = Result<Cursor<Business>, mongodb::error::Error>;
         let businesses_col: Collection<Business> = self
             .clone()

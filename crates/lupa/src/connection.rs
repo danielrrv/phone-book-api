@@ -123,9 +123,6 @@ impl Connection {
     }
 }
 
-
-
-
 #[cfg(test)]
 mod tests{
     use std::path::Path;

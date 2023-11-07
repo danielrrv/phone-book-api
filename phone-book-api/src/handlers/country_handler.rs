@@ -65,6 +65,8 @@ pub mod handlers {
         Json,
     };
     use futures::{join, try_join};
+    use lupa::query::MongoQuery;
+    use serde::Deserialize;
     use serde_json::json;
     pub enum CountryRepoError {
         NotFound,
@@ -96,41 +98,39 @@ pub mod handlers {
     impl IntoResponse for Country {
         fn into_response(self) -> Response {
             let country = self;
-            (StatusCode::OK, Json(json!(country))).into_response()
+            (StatusCode::CREATED, Json(json!(country))).into_response()
         }
     }
-    // use crate::model::country::Country;
-    // pub async fn country_with_businesses<'a>(
-    //     State(_mongo_client): State<mongodb::Client>,
-    //     Path(_country): Path<String>,
-    //     Query(_businesses): Query<String>,
-    // ) -> Result<Json<Country>, AppError> {
-    //     //Look up the country information.
-    //     //Country's featured businesses
-    //     // let country = Country::find_by_name(String::from("Colombia")).unwrap();
-    //     Ok(Json(country.to_owned()))
-    // }
-    // fn internal_error<E>(err: E) -> (StatusCode, String)
-    // where
-    //     E: std::error::Error,
-    // {
-    //     (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
-    // }
+    #[derive(Deserialize)]
+    pub struct CountryQuery {
+        pub company: Option<String>,
+    }
+
     pub async fn get_country<'a>(
         State(mongo_client): State<mongodb::Client>,
         Path(_country): Path<String>,
+        Query(query): Query<CountryQuery>,
     ) -> Result<Country, AppError> {
-        let country = Country::from(mongo_client.database(_country.as_ref()))
-            .when("company_name".to_string(), "Avianca".to_string())
-            .from_collection("businesses".to_string())
-            .execute()
+        //TODO: validate the country database and search availability
+        let mongo_query: MongoQuery<Business> = MongoQuery::from(
+            mongo_client
+                .database(_country.as_ref())
+                .collection("businesses"),
+        );
+        // if query.company.is_none(){
+        //    return Err(AppError::CountryRepo(CountryRepoError::NotFound))
+        // }
+        let result = mongo_query
+            .find(
+                //TODO: Make the company_name an index and primary key.
+                //TODO Validate the company
+                String::from("company_name"),
+                MongoQuery::<Business>::bson_eq(query.company.unwrap_or(String::from(""))),
+            )
             .await;
-        match country {
-            Ok(value)=>Ok(value),
-            Err(_error)=>{
-                println!("{}", _error);
-                Err(AppError::CountryRepo(CountryRepoError::InvalidUsername))
-            }
+        match result {
+            Ok(businesses) => Ok(Country::from(businesses)),
+            Err(error) => panic!("{}", error),
         }
     }
 }
