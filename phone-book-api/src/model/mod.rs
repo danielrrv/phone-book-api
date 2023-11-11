@@ -5,3 +5,4 @@ pub(crate) mod access_point;
 pub(crate) mod address;
 pub(crate) mod city;
 pub(crate) mod phone;
+pub(crate) mod tag;

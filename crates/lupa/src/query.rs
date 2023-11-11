@@ -1,14 +1,25 @@
 extern crate tracing;
 use std::collections::HashMap;
+use std::ops::Deref;
 
 use futures::stream::{StreamExt, TryStream, TryStreamExt};
-use futures::Stream;
+
 use mongodb::bson::doc;
 
 use mongodb::bson::Document;
 use mongodb::options::FindOptions;
 use mongodb::Collection;
-use serde::de::{value, DeserializeOwned};
+use serde::de::{ DeserializeOwned};
+
+pub trait Neweable<T>{
+    fn new()->T;
+}
+
+// pub enum MongoQueryResult<T, U>{
+//     Completed(T),// Returns the expected type of the query
+//     Partial(U, T),// Returns self and the expected type of the query.
+// }
+
 
 #[derive(Clone, Debug)]
 pub struct MongoQuery<T>
@@ -16,8 +27,8 @@ where
     T: DeserializeOwned,
 {
     entity: Option<String>,
+    pub results: Option<Vec<T>>,
     collection: Option<mongodb::Collection<T>>,
-    fields: Vec<Field>,
     docs: HashMap<String, Document>,
 }
 
@@ -29,8 +40,8 @@ where
         Self {
             collection: Some(collection.clone()),
             entity: Some(collection.name().to_string()),
-            fields: Default::default(),
             docs: Default::default(),
+            results: None,
         }
     }
 }
@@ -43,83 +54,47 @@ pub enum MongoQueryError {
 impl<T> MongoQuery<T>
 where
     T: DeserializeOwned,
-{
-    //Operator
-    pub fn bson_in(values: Vec<String>) -> Document {
-        doc! {"$in": values}
-    }
-    pub fn bson_eq(values: String) -> Document {
-        doc! {"$eq": values}
-    }
 
-    pub async fn find(
-        &self,
-        field: String,
-        filter: Document,
-    ) -> Result<Vec<T>, mongodb::error::Error>
+{
+    pub async fn find(&mut self,  filter: Document) -> Result<&mut Self, mongodb::error::Error>
     where
-        T: DeserializeOwned,
+        T: DeserializeOwned + Clone,
+    
     {
-        
         let opts = FindOptions::builder().batch_size(50).build();
-        let mut cursor = self
+        let cursor = &mut self
             .collection
-            .clone()
+            .as_ref()
             .expect("No collection associated")
-            .find(doc! {field: filter}, opts)
+            .find(filter, opts)
             .await?;
         let mut container: Vec<T> = Vec::with_capacity(1000);
-        while let Some(result) = cursor.next().await {
+        while let  Some(result) = cursor.next().await {
             match result {
                 Ok(value) => container.push(value),
                 Err(error) => panic!("{}", error),
             }
         }
-        Ok(container)
+        self.results = Some(container);
+        Ok(self)
+    }
+    
+    pub async fn scoped(&mut self)->Result<&mut Self, mongodb::error::Error> {
 
-        // Err(mongodb::error::Error::custom("Unable to wrap the query".to_string()))
+        Ok(self)
     }
 }
 
 impl<T> Default for MongoQuery<T>
 where
-    T: DeserializeOwned,
+    T: DeserializeOwned + Neweable<T>,
 {
     fn default() -> Self {
         Self {
             collection: None,
             entity: None,
-            fields: Vec::new(),
             docs: HashMap::new(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FieldValue {
-    Value { value: String },
-    Operator { operator: String, value: String },
-}
-
-impl Default for FieldValue {
-    fn default() -> Self {
-        Self::Value {
-            value: "".to_string(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Field {
-    field_name: String,
-    field_value: FieldValue,
-}
-
-impl Field {
-    fn new(field_name: String, field_value: FieldValue) -> Self {
-        Self {
-            field_name,
-            field_value,
+            results: Some(Vec::new())
         }
     }
 }

@@ -7,10 +7,7 @@ use std::fmt;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Business {
-    // #[serde(skip)]
-    // _collection: String,
-    // #[serde(skip)]
-    // _primary_key:String,
+    pub _id: u64,
     pub company_name: String,
     pub locations: Vec<AccessPoint>,
     pub description: String
@@ -21,3 +18,14 @@ impl fmt::Display for Business {
         write!(f, "{},{:?}", self.company_name, self.locations)
     }
 }
+
+// impl From<Vec<Business>> for Business {
+//     fn from(value: Vec<Business>) -> Self {
+//         Self {
+//             _client: None,
+//             company_name: String::from("Avianca"),
+//             code: Default::default(),
+//             businesses: value,
+//         }
+//     }
+// }

@@ -135,8 +135,7 @@ mod tests{
     #[test]
     fn from_config_test(){
         println!("{:?}", env::current_dir().unwrap());
-        let config_path = Path::new("./../configuration.log");
-        let config = ConnectionConfig::from(config_path );
-        
+        let config_path = Path::new("./config.toml");
+        let config = ConnectionConfig::from(config_path);
     }
 }

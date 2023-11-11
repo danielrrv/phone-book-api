@@ -1,0 +1,15 @@
+[config]
+host = "localhost"
+port = 27017
+app_name = "phone-book"
+connect_timeout = 10
+credential = ""
+max_idle_time = 15
+max_pool_size = 10
+min_pool_size = 1
+max_connecting = 60
+read_concern = ""
+retry_reads = true
+retry_writes = true
+default_database = "colombia"
+tls = false
