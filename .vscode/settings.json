@@ -7,6 +7,10 @@
         "./phone-book-api/Cargo.toml",
         "./phone-book-api/Cargo.toml",
         "./phone-book-api/Cargo.toml",
+        "./phone-book-api/Cargo.toml",
+        "./phone-book-api/Cargo.toml",
+        "./phone-book-api/Cargo.toml",
+        "./phone-book-api/Cargo.toml",
         "./phone-book-api/Cargo.toml"
     ],
     "files.associations": {

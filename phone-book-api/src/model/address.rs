@@ -1,15 +1,32 @@
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{collections::HashMap, fmt};
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Address {
-    lat: f32,
-    long: f32,
+    pub address1: String,
+    pub address2: String,
+    pub city: String,
+    pub metadata: Vec<HashMap<String, String>>,
+    pub lat: f32,
+    pub long: f32,
 }
 
 impl Address {
-    pub(crate) fn new(lat: f32, long: f32) -> Self {
-        Self { lat, long }
+    pub(crate) fn new(
+        address1: String,
+        city: String,
+        address2: String,
+        lat: f32,
+        long: f32,
+    ) -> Self {
+        Self {
+            address1,
+            address2,
+            city,
+            metadata: Vec::new(),
+            lat,
+            long,
+        }
     }
 }
 

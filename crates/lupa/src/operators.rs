@@ -1,17 +1,23 @@
-use mongodb::bson::{doc, Bson, Document};
-use std::{fmt, str::FromStr};
-
+use mongodb::{
+    bson::{doc, Bson, Document},
+    options::UpdateModifications,
+};
+use serde::Serialize;
+use std::{fmt, str::FromStr, marker::PhantomData};
 
 macro_rules! empty {
     () => {
-       String::from("") 
+        ""
     };
 }
 
 #[derive(Clone, Debug)]
-pub enum QueryOperator<T> {
+pub enum QueryOperator<'x, T, U>
+where
+    U: Clone + Serialize,
+{
     /// Matches values that are equal to a specified value.
-    Eq(String,String),
+    Eq(&'x str, &'x str),
     /// Matches values that are greater than a specified value.
     Gt(String),
     /// Matches values that are greater than or equal to a specified value.
@@ -26,8 +32,10 @@ pub enum QueryOperator<T> {
     Ne(String),
     /// Matches none of the values specified in an array.
     Nin,
+    /// Matches documents that have the specified field.
+    Exists,
     /// Joins query clauses with a logical AND returns all documents that match the conditions of both clauses.
-    And,
+    And(Vec<Document>),
     /// Inverts the effect of a query expression and returns documents that do not match the query expression.
     Or(Vec<Document>),
     /// Joins query clauses with a logical OR returns all documents that match the conditions of either clause.
@@ -60,12 +68,13 @@ pub enum QueryOperator<T> {
     BitsAnyClear,
     /// Matches numeric or binary values in which any bit from a set of bit positions has a value of 1.
     BitsAnySet,
+    Set(U),
 }
-impl<T> QueryOperator<T> {
+impl<'x, T, U: Clone + Serialize> QueryOperator<'x, T, U> {
     #[inline]
     pub fn as_str(&self) -> &'static str {
         match &*self {
-            QueryOperator::Eq(_,__) => "$eq",
+            QueryOperator::Eq(_, __) => "$eq",
             QueryOperator::Gt(_) => "$gt",
             QueryOperator::Gte(_) => "$gte",
             QueryOperator::In(_) => "$in",
@@ -73,7 +82,7 @@ impl<T> QueryOperator<T> {
             QueryOperator::Lte(_) => todo!(),
             QueryOperator::Ne(_) => todo!(),
             QueryOperator::Nin => todo!(),
-            QueryOperator::And => todo!(),
+            QueryOperator::And(_) => "$and",
             QueryOperator::Or(_) => "$or",
             QueryOperator::Not => todo!(),
             QueryOperator::Nor => todo!(),
@@ -84,44 +93,88 @@ impl<T> QueryOperator<T> {
             QueryOperator::Text(_) => todo!(),
             QueryOperator::Where => todo!(),
             QueryOperator::All => todo!(),
-            QueryOperator::ElemMatch(_) => "$elementMatch",
+            QueryOperator::ElemMatch(_) => "$elemMatch",
             QueryOperator::Size(_) => todo!(),
             QueryOperator::BitsAllClear => todo!(),
             QueryOperator::BitsAllSets => todo!(),
             QueryOperator::BitsAnyClear => todo!(),
             QueryOperator::BitsAnySet => todo!(),
+            QueryOperator::Set(_) => "$set",
             _ => panic!("Unknown operator"),
         }
     }
 }
 
-impl<T> fmt::Display for QueryOperator<T> {
+impl<'x, T, U: Clone + Serialize> fmt::Display for QueryOperator<'x, T, U> {
     // #[inline(always)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.as_str().fmt(f)
     }
 }
-impl<T> Into<Document> for QueryOperator<T>
+
+impl<'x, T, U: Clone + Serialize + Into<Document>> Into<UpdateModifications>
+    for QueryOperator<'x, T, U>
 where
-    T: Into<Bson> + Clone,
+    T: Into<Bson> + Clone
 {
-    fn into(self) -> Document {
+    fn into(self) -> UpdateModifications {
         match self {
-            QueryOperator::Eq(ref field, ref value) => doc! {field:{self.as_str(): value}},
-            QueryOperator::Gt(ref value) => doc! {self.as_str(): value},
-            QueryOperator::Gte(ref value) => doc! {self.as_str(): value},
-            QueryOperator::In(ref values) => doc! {self.as_str(): values},
-            QueryOperator::Lt(ref _value) => todo!(),
-            QueryOperator::Lte(ref value) => todo!(),
-            QueryOperator::Ne(ref value) => todo!(),
+            QueryOperator::Eq(_, _) => todo!(),
+            QueryOperator::Gt(_) => todo!(),
+            QueryOperator::Gte(_) => todo!(),
+            QueryOperator::In(_) => todo!(),
+            QueryOperator::Lt(_) => todo!(),
+            QueryOperator::Lte(_) => todo!(),
+            QueryOperator::Ne(_) => todo!(),
             QueryOperator::Nin => todo!(),
-            QueryOperator::And => todo!(),
-            QueryOperator::Or(ref docs) => doc! {self.as_str(): docs},
+            QueryOperator::Exists => todo!(),
+            QueryOperator::And(_) => todo!(),
+            QueryOperator::Or(_) => todo!(),
             QueryOperator::Not => todo!(),
             QueryOperator::Nor => todo!(),
             QueryOperator::Expr => todo!(),
             QueryOperator::JsonSchema => todo!(),
             QueryOperator::Mod => todo!(),
+            QueryOperator::Regex(_) => todo!(),
+            QueryOperator::Text(_) => todo!(),
+            QueryOperator::Where => todo!(),
+            QueryOperator::All => todo!(),
+            QueryOperator::ElemMatch(_) => todo!(),
+            QueryOperator::Size(_) => todo!(),
+            QueryOperator::BitsAllClear => todo!(),
+            QueryOperator::BitsAllSets => todo!(),
+            QueryOperator::BitsAnyClear => todo!(),
+            QueryOperator::BitsAnySet => todo!(),
+            QueryOperator::Set(doc) => UpdateModifications::Document(doc.into()),
+        }
+    }
+}
+impl<'x, T, U> Into<Document> for QueryOperator<'x, T, U>
+where
+    T: Into<Bson> + Clone,
+    U: Clone + Serialize + Into<Bson>,
+{
+    fn into(self) -> Document {
+        match self {
+            QueryOperator::Eq(field, value) => doc! {field:{self.as_str(): value}},
+            QueryOperator::Gt(ref value) | QueryOperator::Gte(ref value) => {
+                doc! {self.as_str(): value}
+            }
+
+            QueryOperator::Lt(ref value)
+            | QueryOperator::Lte(ref value)
+            | QueryOperator::Ne(ref value) => todo!(),
+            QueryOperator::Nin => todo!(),
+            QueryOperator::In(ref docs) => doc! {self.as_str(): docs},
+            QueryOperator::And(ref docs) | QueryOperator::Or(ref docs) => {
+                doc! {self.as_str(): docs}
+            }
+            QueryOperator::Not => todo!(),
+            QueryOperator::Nor => todo!(),
+            QueryOperator::Expr => todo!(),
+            QueryOperator::JsonSchema => todo!(),
+            QueryOperator::Mod => todo!(),
+            QueryOperator::Exists => todo!(),
             QueryOperator::Regex(ref value) => todo!(),
             QueryOperator::Text(ref value) => todo!(),
             QueryOperator::Where => todo!(),
@@ -132,35 +185,10 @@ where
             QueryOperator::BitsAllSets => todo!(),
             QueryOperator::BitsAnyClear => todo!(),
             QueryOperator::BitsAnySet => todo!(),
+            QueryOperator::Set(ref doc) => doc! {self.as_str(): doc },
         }
     }
 }
-impl<T> FromStr for QueryOperator<T> {
-    type Err = ();
-    fn from_str(value: &str) -> Result<QueryOperator<T>, ()> {
-        match value {
-            v if QueryOperator::<T>::Eq(empty!(), value.to_owned()).as_str() == value => {
-                Ok(QueryOperator::<T>::Eq(empty!(),v.to_owned()))
-            }
-            _ => Err(()),
-        }
-    }
-}
-
-// impl<T> From<T> for QueryOperator<T>
-// where
-//     T: Into<Vec<T>> + Sized,
-//     T: Into<String>,
-// {
-//     fn from(value: T) -> Self {
-//         let value: Vec<T> = value.into();
-
-//         match value {
-
-//         }
-//         todo!()
-//     }
-// }
 
 // #[cfg(test)]
 // mod tests {

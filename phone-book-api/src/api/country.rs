@@ -47,15 +47,21 @@ impl IntoResponse for Country {
 #[derive(Deserialize)]
 pub struct CountryQuery {
     pub company: Option<String>,
-    pub tags: Option<String>,
-    pub city: Option<String>,
+    pub tags: String,
+    pub city: String,
 }
 
+impl Default for CountryQuery {
+    fn default() -> Self {
+        Self { company: None, tags: "".to_string(), city: "".to_string() }
+    }
+}
 pub async fn get_country<'a>(
     State(mongo_client): State<mongodb::Client>,
     Path(country): Path<String>,
-    Query(query): Query<CountryQuery>,
+    query: Option<Query<CountryQuery>>,
 ) -> Result<Country, AppError> {
+    let Query(query) = query.unwrap_or_default();
     //TODO: validate the country database and search availability
     let collection = mongo_client
         .database(country.as_ref())
@@ -63,7 +69,7 @@ pub async fn get_country<'a>(
     let mut mongo_query: MongoQuery<Business> = MongoQuery::from(collection);
     let query_result = mongo_query
         .find(           
-            QueryOperator::<String>::Eq(String::from("field_company"),query.company.unwrap_or(String::from(""))).into(),
+            QueryOperator::<String, String>::Eq("company_name", &query.company.unwrap_or("".to_string())).into(),
         )
         .await.unwrap();
     match &query_result.results{

@@ -1,12 +1,13 @@
 
 
 use axum::{
-    routing::{get, post},
+    routing::{get, post, put},
     Router,
 };
+
 use lupa::connection::Connection;
 use std::path::Path;
-use crate::api::{country::get_country, bussiness::get_businesses};
+use crate::api::{country::get_country, bussiness::{get_businesses, put_business}};
 
 
 
@@ -25,5 +26,6 @@ pub fn application() -> Router {
         // .route("/", get(hello));
         .route("/:country", get(get_country))
         .route("/:country/:city", get(get_businesses))
+        .route("/:country", put(put_business))    
         .with_state(mongo_client);
 }

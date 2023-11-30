@@ -2,15 +2,14 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Tag {
-    uid: u64,
     name: String,
 }
 
 impl Tag {
     pub(crate) fn new(name: String) -> Self {
-        Self { uid: 65_534, name }
+        Self { name }
     }
 }
 

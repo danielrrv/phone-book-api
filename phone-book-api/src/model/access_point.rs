@@ -1,35 +1,65 @@
-use std::fmt;
-
-use crate::model::{
-    address::Address,
-    city::City,
-    phone::Phone,
-    tag::Tag
-
-};
+use std::{collections::{HashMap, hash_map::DefaultHasher}, fmt};
+use std::hash::{Hash, Hasher};
+use crate::model::{address::Address, city::City, phone::Phone, tag::Tag};
 
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct AccessPoint{
-    access_point_name: String,
-    city: City,
-    address: Address,
-    phones: Vec<Phone>,
-    tags: Vec<Tag>// Max 4M unicos por cuidad tags
-    //Tag tiene un valor unico y puede ser compartido por otros.
+pub struct AccessPoint {
+    pub _id: Option<String>,
+    pub name: String,
+    pub address1: String,
+    pub address2: String,
+    pub city: String,
+    pub lat: f32,
+    pub long: f32,
+    pub phones: Vec<Phone>,
+    pub tags: Vec<Tag>, // Max 4M unicos por cuidad tags
+                        //Tag tiene un valor unico y puede ser compartido por otros.
 }
 //ciudad.businesses.access_point(por ciudad).tags(calle nueva, centro comercial, servico, producto, evento)[scoped by ciudad]
 //1-4048.256-65534.256-65534.[256-65534/independiente]
 
 impl AccessPoint {
-    pub (crate) fn new(access_point_name:String,city: City, address: Address)->Self{
-        Self{ access_point_name,city, address, phones: Vec::new(), tags:Vec::<Tag>::new() }
+    pub(crate) fn new(
+        name: String,
+        address1: String,
+        city: String,
+        address2: String,
+        lat: f32,
+        long: f32,
+        phones: Vec<Phone>,
+        tags: Vec<Tag>,
+    ) -> Self {
+        Self {
+            _id:Some(AccessPoint::calculate_hash(&name).to_string()),
+            name:name,
+            city:city,
+            address1:address1,
+            address2: address2,
+            lat:lat,
+            long:long,
+            phones:phones,
+            tags:tags
+        }
+    }
+    
+    pub fn calculate_hash<T: Hash>(t: &T) -> u64 {
+        let mut s = DefaultHasher::new();
+        t.hash(&mut s);
+        s.finish()
     }
 }
 
-impl fmt::Display for AccessPoint{
+impl fmt::Display for AccessPoint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.address )
+        write!(f, "{:?}", self.name)
     }
 }
+
+impl PartialEq for AccessPoint{
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.city == other.city || self._id == other._id
+    }
+}
+

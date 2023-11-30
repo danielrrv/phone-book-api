@@ -10,3 +10,7 @@ https://k6.io
 - MongoDb indexing
 - Redis caching
 - Frontend CDN
+
+
+
+{"locations":{"$elemMatch":{"city":"bogota"}}}

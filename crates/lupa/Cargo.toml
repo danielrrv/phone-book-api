@@ -12,3 +12,4 @@ serde = "1.0"
 async-trait = "0.1.74"
 futures = "0.3.29"
 tracing = {version="0.1.40", features=["log"]}
+macros_utils={path="../macros-utils", version="0.1.0"}
