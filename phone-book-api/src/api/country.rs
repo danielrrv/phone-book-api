@@ -69,7 +69,7 @@ pub async fn get_country<'a>(
     let mut mongo_query: MongoQuery<Business> = MongoQuery::from(collection);
     let query_result = mongo_query
         .find(           
-            QueryOperator::<String, String>::Eq("company_name", &query.company.unwrap_or("".to_string())).into(),
+            QueryOperator::<String>::Eq("company_name", &query.company.unwrap_or("".to_string())).into(),
         )
         .await.unwrap();
     match &query_result.results{

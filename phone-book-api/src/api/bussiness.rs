@@ -2,14 +2,14 @@ use std::marker::PhantomData;
 
 use axum::{
     extract::{Path, Query, State},
-    http::StatusCode,
+    http::{status, StatusCode},
     response::{IntoResponse, Response},
     Json,
 };
 use futures::stream::Collect;
 use lupa::{collection::Model, operators::QueryOperator, query::MongoQuery};
 use mongodb::{
-    bson::{doc, Document},
+    bson::{doc, to_document, Document},
     Collection,
 };
 use serde::Deserialize;
@@ -23,6 +23,7 @@ use crate::model::{
 
 #[derive(Debug)]
 pub enum BusinessError {
+    GenericDatabaseError(mongodb::error::Error),
     BusinessNotFound(String),
     TagNotProvided,
     CompanyNameAbsent,
@@ -44,6 +45,9 @@ impl IntoResponse for BusinessError {
                 StatusCode::BAD_REQUEST,
                 String::from("Description is required."),
             ),
+            BusinessError::GenericDatabaseError(error) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
+            }
         };
         let body = Json(json!({
             "error": &error_message,
@@ -64,7 +68,7 @@ pub struct BussinessQuery {
     pub tags: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct BusinessUpdateJsonRequest {
     pub company_name: Option<String>,
     pub locations: Vec<AccessPoint>,
@@ -100,12 +104,12 @@ pub async fn get_businesses<'a>(
         .split(",")
         .map(|tag| doc! {"tags":tag})
         .collect();
-    let city_doc: Document = QueryOperator::<String, String>::ElemMatch(doc! {"city": city}).into();
+    let city_doc: Document = QueryOperator::<String>::ElemMatch(doc! {"city": city}).into();
 
     tags.push(doc! {"locations": city_doc});
 
     let query_result = mongo_query
-        .find(QueryOperator::<String, String>::And(tags).into())
+        .find(QueryOperator::<String>::And(tags).into())
         .await
         .unwrap();
 
@@ -118,52 +122,62 @@ pub async fn get_businesses<'a>(
 pub async fn put_business(
     State(mongo_client): State<mongodb::Client>,
     Path(country): Path<String>,
-    request_body: Option<Json<BusinessUpdateJsonRequest>>,
+    Json(request_body): Json<BusinessUpdateJsonRequest>,
 ) -> Result<Json<Business>, BusinessError> {
     let mut mongo_query: MongoQuery<Business> = MongoQuery::from(
         mongo_client
             .database(country.as_ref())
             .collection("businesses"),
     );
-    let Json(request_body) = request_body.unwrap_or_default();
+    println!("{:?}", request_body);
     let company_name = request_body
         .company_name
-        .ok_or(BusinessError::CompanyNameAbsent)
-        .unwrap();
-
+        .ok_or(BusinessError::CompanyNameAbsent)?;
+    
     let query_result = mongo_query
-        .find(QueryOperator::<String, String>::Eq("company_name", &company_name).into())
+        .find(QueryOperator::<String>::Eq("company_name", &company_name).into())
         .await
         .unwrap();
-
+    
     match &query_result.results {
         Some(businesses) => match businesses.first() {
             Some(business) => {
-                println!("Business Found");
                 let mut existing_business = business.clone();
                 if let Some(description) = request_body.description {
-                    existing_business.add_description(description);
+                    existing_business.add_description(&description);
                 }
-                for location in request_body.locations {
-                    existing_business.add_location(location);
+                for mut location in request_body.locations {
+                    let name = location.name.clone();
+                    location.tag_from(&name);
+                    existing_business.add_location(&location);
                 }
-                let bi = mongo_query.save(&existing_business).await.unwrap();
-
-                // existing_business.save(business_collection.clone());
-                return Ok(Json(bi.to_owned()));
+                match mongo_query
+                    .update(
+                        doc! {"_id": existing_business.clone()._id},
+                        &existing_business,
+                    )
+                    .await
+                {
+                    Ok(business) => Ok(Json(business.to_owned())),
+                    Err(error) => Err(BusinessError::GenericDatabaseError(error)),
+                }
             }
             None => {
-                println!("New Business");
                 let mut new_bussiness = Business::new(company_name);
                 if let Some(description) = request_body.description {
-                    new_bussiness.add_description(description);
+                    new_bussiness
+                        .add_description(&description)
+                        .tag_from(&description);
                 }
-                for location in request_body.locations {
-                    new_bussiness.add_location(location);
+                for mut location in request_body.locations {
+                    let name = location.name.clone();
+                    location.tag_from(&name);
+                    new_bussiness.add_location(&location);
                 }
-                let bi = mongo_query.save(&new_bussiness).await.unwrap();
-                // new_bussiness.save(business_collection.clone());
-                return Ok(Json(bi.to_owned()));
+                match mongo_query.save(&new_bussiness).await {
+                    Ok(business) => Ok(Json(business.to_owned())),
+                    Err(error) => Err(BusinessError::GenericDatabaseError(error)),
+                }
             }
         },
         None => panic!(),

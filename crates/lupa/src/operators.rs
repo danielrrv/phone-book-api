@@ -2,7 +2,7 @@ use mongodb::{
     bson::{doc, Bson, Document},
     options::UpdateModifications,
 };
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use std::{fmt, str::FromStr, marker::PhantomData};
 
 macro_rules! empty {
@@ -12,9 +12,7 @@ macro_rules! empty {
 }
 
 #[derive(Clone, Debug)]
-pub enum QueryOperator<'x, T, U>
-where
-    U: Clone + Serialize,
+pub enum QueryOperator<'x, T>
 {
     /// Matches values that are equal to a specified value.
     Eq(&'x str, &'x str),
@@ -68,9 +66,11 @@ where
     BitsAnyClear,
     /// Matches numeric or binary values in which any bit from a set of bit positions has a value of 1.
     BitsAnySet,
-    Set(U),
+    Set(Document),
 }
-impl<'x, T, U: Clone + Serialize> QueryOperator<'x, T, U> {
+
+    
+impl<'x, T> QueryOperator<'x, T> {
     #[inline]
     pub fn as_str(&self) -> &'static str {
         match &*self {
@@ -105,15 +105,15 @@ impl<'x, T, U: Clone + Serialize> QueryOperator<'x, T, U> {
     }
 }
 
-impl<'x, T, U: Clone + Serialize> fmt::Display for QueryOperator<'x, T, U> {
-    // #[inline(always)]
+impl<'x, T> fmt::Display for QueryOperator<'x, T> {
+    #[inline(always)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.as_str().fmt(f)
     }
 }
 
-impl<'x, T, U: Clone + Serialize + Into<Document>> Into<UpdateModifications>
-    for QueryOperator<'x, T, U>
+impl<'x, T> Into<UpdateModifications>
+    for QueryOperator<'x, T>
 where
     T: Into<Bson> + Clone
 {
@@ -145,14 +145,13 @@ where
             QueryOperator::BitsAllSets => todo!(),
             QueryOperator::BitsAnyClear => todo!(),
             QueryOperator::BitsAnySet => todo!(),
-            QueryOperator::Set(doc) => UpdateModifications::Document(doc.into()),
+            QueryOperator::Set(doc) => UpdateModifications::Document(doc),
         }
     }
 }
-impl<'x, T, U> Into<Document> for QueryOperator<'x, T, U>
+impl<'x, T> Into<Document> for QueryOperator<'x, T>
 where
-    T: Into<Bson> + Clone,
-    U: Clone + Serialize + Into<Bson>,
+    T: Into<Bson> + Clone
 {
     fn into(self) -> Document {
         match self {
@@ -185,7 +184,9 @@ where
             QueryOperator::BitsAllSets => todo!(),
             QueryOperator::BitsAnyClear => todo!(),
             QueryOperator::BitsAnySet => todo!(),
-            QueryOperator::Set(ref doc) => doc! {self.as_str(): doc },
+            QueryOperator::Set(ref doc) => {
+                doc! {self.as_str(): doc }
+            },
         }
     }
 }

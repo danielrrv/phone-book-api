@@ -1,15 +1,20 @@
 extern crate tracing;
+use crate::collection::Model;
+use crate::operators;
 use std::collections::HashMap;
 use std::ops::Deref;
 
 use futures::stream::{StreamExt, TryStream, TryStreamExt};
 
 use mongodb::bson::doc;
+use mongodb::bson::Bson;
 
+use mongodb::bson::from_document;
+use mongodb::bson::to_document;
 use mongodb::bson::Document;
 use mongodb::options::FindOptions;
-use mongodb::Collection;
 use mongodb::options::UpdateModifications;
+use mongodb::Collection;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
@@ -18,9 +23,6 @@ use crate::operators::QueryOperator;
 type MongoResult<'a, T> = Result<&'a mut MongoQuery<T>, mongodb::error::Error>;
 pub trait Neweable<T> {
     fn new() -> T;
-}
-pub trait Model<T> {
-    fn scoped(by: &str) -> T;
 }
 
 // pub enum MongoQueryResult<T, U>{
@@ -52,19 +54,18 @@ where
         }
     }
 }
-
 pub enum MongoQueryError {
     QueryNotFound,
     BadQuery,
 }
 
-impl<T> MongoQuery<T>
+impl<R> MongoQuery<R>
 where
-    T: DeserializeOwned,
+    R: DeserializeOwned,
 {
     pub async fn find(&mut self, filter: Document) -> Result<&mut Self, mongodb::error::Error>
     where
-        T: DeserializeOwned + Clone,
+        R: DeserializeOwned + Clone,
     {
         let opts = FindOptions::builder().batch_size(50).build();
         let cursor = &mut self
@@ -73,7 +74,7 @@ where
             .expect("No collection associated")
             .find(filter, opts)
             .await?;
-        let mut container: Vec<T> = Vec::with_capacity(1000);
+        let mut container: Vec<R> = Vec::with_capacity(1000);
         while let Some(result) = cursor.next().await {
             match result {
                 Ok(value) => container.push(value),
@@ -83,39 +84,50 @@ where
         self.results = Some(container);
         Ok(self)
     }
-    pub async fn save<'a>(&mut self, entity: &'a T) -> Result<&'a T, mongodb::error::Error>
+    pub async fn save<'a>(&mut self, entity: &'a R) -> Result<&'a R, mongodb::error::Error>
     where
-        T: Clone + Serialize,
+        R: Clone + Serialize,
     {
-        let insert_one_result = self.collection
+        let insert_one_result = self
+            .collection
             .as_ref()
             .expect("No collection associated")
             .insert_one(entity, None)
             .await?;
 
-        println!("Inserted document with _id: {}", insert_one_result.inserted_id);
-        println!("Calling");
+        println!(
+            "Inserted document with _id: {}",
+            insert_one_result.inserted_id
+        );
         Ok(entity)
     }
-    pub async fn update<'a>(&mut self,_id: String, entity: &'a T) -> Result<&'a T, mongodb::error::Error>
+
+    pub async fn update<'a>(
+        &mut self,
+        filter: Document,
+        entity: &'a R,
+    ) -> Result<&'a R, mongodb::error::Error>
     where
-        T: Clone + Serialize + Into<Document>,
+        R: Serialize,
     {
-        let filter = doc!{"_id": _id};
-        let update_doc= QueryOperator::<String, T>::Set(entity.clone());
-        let insert_one_result = self.collection
+        let model = to_document(&entity).unwrap();
+        let update_doc: Document = QueryOperator::<String>::Set(model).into();
+        let insert_one_result = self
+            .collection
             .as_ref()
             .expect("No collection associated")
             .update_one(filter, update_doc, None)
             .await?;
 
-        // println!("Inserted document with _id: {}", insert_one_result.inserted_id);
-        println!("Calling");
+        println!(
+            "Inserted document with _id: {:?}",
+            insert_one_result.upserted_id
+        );
         Ok(entity)
     }
 
     pub fn scoped(&mut self, by: &str, when: &str) -> Result<&mut Self, ()> {
-        let nested: Vec<&str> = by.split(".").collect();
+        let _nested: Vec<&str> = by.split(".").collect();
         // let mut results = self.results.unwrap();
         // results.iter().filter(|element|element. )
 

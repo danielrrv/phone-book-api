@@ -4,7 +4,5 @@ use mongodb::{
     Collection,
 };
 pub trait Model{
-    fn save<T>(&self, coll:Collection<T>)->bool{
-        true
-    }
+    fn tag_from(&mut self, paratext: &str)->&mut Self;
 }
