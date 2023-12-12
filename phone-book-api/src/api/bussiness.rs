@@ -9,7 +9,7 @@ use axum::{
 use futures::stream::Collect;
 use lupa::{collection::Model, operators::QueryOperator, query::MongoQuery};
 use mongodb::{
-    bson::{doc, to_document, Document},
+    bson::{doc, to_document, Document, to_bson},
     Collection,
 };
 use serde::Deserialize;
@@ -102,12 +102,11 @@ pub async fn get_businesses<'a>(
         .tags
         .ok_or(BusinessError::TagNotProvided)?
         .split(",")
-        .map(|tag| doc! {"tags":tag})
+        .map(|tag| doc! {"tags":tag })
         .collect();
     let city_doc: Document = QueryOperator::<String>::ElemMatch(doc! {"city": city}).into();
 
     tags.push(doc! {"locations": city_doc});
-
     let query_result = mongo_query
         .find(QueryOperator::<String>::And(tags).into())
         .await
@@ -129,32 +128,38 @@ pub async fn put_business(
             .database(country.as_ref())
             .collection("businesses"),
     );
-    println!("{:?}", request_body);
     let company_name = request_body
         .company_name
         .ok_or(BusinessError::CompanyNameAbsent)?;
-    
+
     let query_result = mongo_query
         .find(QueryOperator::<String>::Eq("company_name", &company_name).into())
         .await
         .unwrap();
-    
+
     match &query_result.results {
         Some(businesses) => match businesses.first() {
             Some(business) => {
+                println!("Found existing bussiness");
                 let mut existing_business = business.clone();
                 if let Some(description) = request_body.description {
                     existing_business.add_description(&description);
                 }
+                for tag in request_body.tags{
+                    if !existing_business.tags.contains(&tag){
+                        existing_business.tags.push(tag)
+                    }
+                }
                 for mut location in request_body.locations {
                     let name = location.name.clone();
-                    location.tag_from(&name);
+                    let city = location.city.clone();
+                    location.tag_from(&name).tag_from(&city);
                     existing_business.add_location(&location);
                 }
                 match mongo_query
                     .update(
                         doc! {"_id": existing_business.clone()._id},
-                        &existing_business,
+                        &mut existing_business,
                     )
                     .await
                 {
@@ -163,17 +168,22 @@ pub async fn put_business(
                 }
             }
             None => {
+                println!("New bussiness");
                 let mut new_bussiness = Business::new(company_name);
                 if let Some(description) = request_body.description {
                     new_bussiness
                         .add_description(&description)
                         .tag_from(&description);
                 }
+                for tag in request_body.tags{
+                    new_bussiness.tags.push(tag)
+                }
                 for mut location in request_body.locations {
                     let name = location.name.clone();
                     location.tag_from(&name);
                     new_bussiness.add_location(&location);
                 }
+                
                 match mongo_query.save(&new_bussiness).await {
                     Ok(business) => Ok(Json(business.to_owned())),
                     Err(error) => Err(BusinessError::GenericDatabaseError(error)),

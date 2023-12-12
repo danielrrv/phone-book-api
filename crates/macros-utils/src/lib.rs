@@ -55,8 +55,12 @@ pub fn derive_collection(item: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         impl Model for #struct_name {
+            fn get_id(&mut self)-> &String{
+                return self._id.as_ref().unwrap();
+            }
             fn tag_from(&mut self, paratext: &str) -> &mut Self {
-                let rregex: Regex = Regex::new(r"[[:word:]]{4, 12}").unwrap();
+                let rregex: Regex = Regex::new(r"\p{L}{4, 16}").unwrap();
+                // let mut tags: Vec<String> =  paratext.split)
                 let mut tags: Vec<String> = rregex
                     .find_iter(&*paratext)
                     .map(|value| value.as_str())

@@ -4,5 +4,6 @@ use mongodb::{
     Collection,
 };
 pub trait Model{
+    fn get_id(&mut self)-> &String;
     fn tag_from(&mut self, paratext: &str)->&mut Self;
 }

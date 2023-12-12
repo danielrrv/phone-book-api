@@ -1,11 +1,14 @@
 use std::{collections::{HashMap, hash_map::DefaultHasher}, fmt};
+use regex::Regex;
 use std::hash::{Hash, Hasher};
 use crate::model::{address::Address, city::City, phone::Phone, tag::Tag};
 
+use lupa::collection::Model;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Model)]
 pub struct AccessPoint {
+    
     pub _id: Option<String>,
     pub name: String,
     pub address1: String,
@@ -14,7 +17,7 @@ pub struct AccessPoint {
     pub lat: f32,
     pub long: f32,
     pub phones: Vec<Phone>,
-    pub tags: Vec<Tag>, // Max 4M unicos por cuidad tags
+    pub tags: Vec<String>, // Max 4M unicos por cuidad tags
                         //Tag tiene un valor unico y puede ser compartido por otros.
 }
 //ciudad.businesses.access_point(por ciudad).tags(calle nueva, centro comercial, servico, producto, evento)[scoped by ciudad]
@@ -29,7 +32,7 @@ impl AccessPoint {
         lat: f32,
         long: f32,
         phones: Vec<Phone>,
-        tags: Vec<Tag>,
+        tags: Vec<String>,
     ) -> Self {
         Self {
             _id:Some(AccessPoint::calculate_hash(&name).to_string()),
@@ -40,7 +43,7 @@ impl AccessPoint {
             lat:lat,
             long:long,
             phones:phones,
-            tags:tags
+            tags
         }
     }
     
@@ -62,4 +65,3 @@ impl PartialEq for AccessPoint{
         self.name == other.name && self.city == other.city || self._id == other._id
     }
 }
-

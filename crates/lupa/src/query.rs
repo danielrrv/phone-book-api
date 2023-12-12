@@ -105,10 +105,10 @@ where
     pub async fn update<'a>(
         &mut self,
         filter: Document,
-        entity: &'a R,
+        entity: &'a mut R,
     ) -> Result<&'a R, mongodb::error::Error>
     where
-        R: Serialize,
+        R: 'a + Serialize + Model,
     {
         let model = to_document(&entity).unwrap();
         let update_doc: Document = QueryOperator::<String>::Set(model).into();
@@ -118,11 +118,18 @@ where
             .expect("No collection associated")
             .update_one(filter, update_doc, None)
             .await?;
+        if insert_one_result.matched_count > 0{
+            println!(
+                "Updated and existing document with _id: {:?}",
+                entity.get_id()
+            );
+        } else {
+            println!(
+                "Updated document with _id: {:?}",
+                insert_one_result.upserted_id
+            );
+        }
 
-        println!(
-            "Inserted document with _id: {:?}",
-            insert_one_result.upserted_id
-        );
         Ok(entity)
     }
 
