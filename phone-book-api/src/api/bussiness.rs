@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+
 
 use axum::{
     extract::{Path, Query, State},
@@ -6,7 +6,6 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use futures::stream::Collect;
 use lupa::{collection::Model, operators::QueryOperator, query::MongoQuery};
 use mongodb::{
     bson::{doc, to_document, Document, to_bson},
@@ -140,6 +139,7 @@ pub async fn put_business(
     match &query_result.results {
         Some(businesses) => match businesses.first() {
             Some(business) => {
+                
                 println!("Found existing bussiness");
                 let mut existing_business = business.clone();
                 if let Some(description) = request_body.description {
@@ -153,7 +153,7 @@ pub async fn put_business(
                 for mut location in request_body.locations {
                     let name = location.name.clone();
                     let city = location.city.clone();
-                    location.tag_from(&name).tag_from(&city);
+                    // location.tag_from(&name).tag_from(&city);
                     existing_business.add_location(&location);
                 }
                 match mongo_query
@@ -169,7 +169,7 @@ pub async fn put_business(
             }
             None => {
                 println!("New bussiness");
-                let mut new_bussiness = Business::new(company_name);
+                let mut new_bussiness:Business = Business::new(company_name);
                 if let Some(description) = request_body.description {
                     new_bussiness
                         .add_description(&description)

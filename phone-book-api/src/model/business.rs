@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use lupa::collection::Model;
 use mongodb::bson::{doc, Bson, Document};
 use regex::Regex;
@@ -5,11 +6,20 @@ use serde::__private::doc;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
+use std::pin::Pin;
+use futures::StreamExt;
 use std::hash::{Hash, Hasher};
-
+use lupa::query::Neweable;
+use serde::de::DeserializeOwned;
 use crate::model::access_point::AccessPoint;
 use crate::model::tag::Tag;
-
+use std::default::Default;
+use mongodb::{
+    error::Error,
+    options::FindOptions,
+    Collection,
+    
+};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Model)]
 pub struct Business {
@@ -25,16 +35,15 @@ impl Hash for Business {
         self.company_name.hash(state)
     }
 }
+impl std::default::Default for Business {
+    fn default() -> Self {
+        Self { _id: Some("".to_string()), company_name: "".to_string(), locations: Vec::new(), description: "".to_string(), tags: Vec::new() }
+    }
+}
 
 impl Business {
     pub fn new(company_name: String) -> Business {
-        Self {
-            _id: Some(Business::calculate_hash(&company_name).to_string()),
-            company_name: company_name,
-            locations: Vec::new(),
-            description: String::from(""),
-            tags: Vec::new(),
-        }
+        Default::default()
     }
     pub fn add_description(&mut self, description: &str) -> &mut Self {
         self.description = description.to_owned();
@@ -68,7 +77,7 @@ impl Business {
 
     fn calculate_hash<T: Hash>(t: &T) -> u64 {
         let mut s = DefaultHasher::new();
-        t.hash(&mut s);
+        t.hash(&mut s);  
         s.finish()
     }
 }

@@ -1,11 +1,9 @@
-
-pub mod model;
 pub mod api;
+pub mod model;
 pub mod routers;
 
 use routers::app::application;
 use std::net::SocketAddr;
-
 
 #[tokio::main]
 async fn main() {

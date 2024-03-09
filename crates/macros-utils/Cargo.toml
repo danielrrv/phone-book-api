@@ -6,8 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+async-trait = "0.1.74"
+futures = "0.3.29"
 mongodb = "2.7.1"
 quote = "1.0.33"
+serde = "1.0.196"
 syn = "2.0.39"
 
 

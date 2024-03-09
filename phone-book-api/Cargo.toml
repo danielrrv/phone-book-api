@@ -24,3 +24,5 @@ lupa={path="../crates/lupa", version="0.1.0"}
 macros_utils={path="../crates/macros-utils", version="0.1.0"}
 tracing = {version="0.1.40", features=["log"]}
 uid = "0.1.7"
+regex = {version="1.10.2", features=["unicode"]}
+once_cell = "1.18.0"
